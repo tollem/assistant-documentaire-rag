@@ -88,6 +88,41 @@ class RagTests(unittest.TestCase):
         self.assertEqual(len(hits), 1)
         self.assertGreater(hits[0]['score'], 0)
 
+    def test_selection_excludes_other_documents_in_both_modes(self):
+        app.ingest('selected.md', b'Budget Atlas : 500 CHF.', False)
+        app.ingest('excluded.md', b'Budget Atlas : 9999 CHF. Information confidentielle exclue.', False)
+        with app.db() as conn:
+            selected = conn.execute("SELECT id FROM documents WHERE name='selected.md'").fetchone()[0]
+        result = app.answer('Quel est le budget Atlas ?', False, [selected])
+        self.assertIn('500 CHF', result['answer'])
+        self.assertNotIn('9999', result['answer'])
+        self.assertEqual({s['document_id'] for s in result['sources']}, {selected})
+        with patch.object(app, 'embeddings', side_effect=[[[1, 0]], [[1, 0]]]) as embedding, patch.object(app, 'structured', side_effect=[{'answer': '500 CHF [1]'}, {'answer': '500 CHF [1]', 'supported': True}]) as model:
+            result = app.answer('Quel est le budget Atlas ?', True, [selected])
+        self.assertTrue(result['verified'])
+        self.assertEqual(embedding.call_args_list[0].args[0], ['Budget Atlas : 500 CHF.'])
+        for call in model.call_args_list:
+            self.assertEqual({s['document_id'] for s in call.args[1]['sources']}, {selected})
+            self.assertNotIn('confidentielle', json.dumps(call.args))
+
+    def test_invalid_or_stale_selection_never_falls_back_to_all(self):
+        app.ingest('available.md', b'Budget Atlas : 500 CHF.', False)
+        for ids in [[], 'all', [None], ['not-an-id'], ['0' * 24], ['0' * 24] * 501]:
+            with self.subTest(ids=repr(ids)[:60]), patch.object(app, 'embeddings') as embedding, patch.object(app, 'structured') as model:
+                with self.assertRaises(ValueError):
+                    app.answer('budget Atlas', True, ids)
+                embedding.assert_not_called()
+                model.assert_not_called()
+
+    def test_empty_selected_document_cannot_leak_a_different_source(self):
+        app.ingest('chosen.md', b'Atlas : les supports de cours sont centralises.', False)
+        app.ingest('other.md', b'Le budget est 500 CHF.', False)
+        with app.db() as conn:
+            selected = conn.execute("SELECT id FROM documents WHERE name='chosen.md'").fetchone()[0]
+        result = app.answer('Quel budget ?', False, [selected])
+        self.assertEqual(result['sources'], [])
+        self.assertNotIn('500', result['answer'])
+
     def test_cloud_persistence_and_conflict(self):
         from google.api_core.exceptions import PreconditionFailed
         class Bucket:
@@ -133,6 +168,14 @@ class RagTests(unittest.TestCase):
             self.assertEqual(urllib.request.urlopen(url).status, 200)
             post('/api/documents', {'name': 'x.md', 'data': base64.b64encode(b'Budget Atlas 500 CHF').decode(), 'mode': 'extraits'})
             self.assertIn('500', post('/api/ask', {'question': 'budget Atlas', 'mode': 'extraits'})['answer'])
+            selected = json.load(urllib.request.urlopen(url + '/api/status'))['documents'][0]['id']
+            post('/api/documents', {'name': 'other.md', 'data': base64.b64encode(b'Budget Atlas 9999 CHF').decode(), 'mode': 'extraits'})
+            result = post('/api/ask', {'question': 'budget Atlas', 'mode': 'extraits', 'document_ids': [selected]})
+            self.assertNotIn('9999', result['answer'])
+            for ids in [[], ['0' * 24]]:
+                with self.assertRaises(urllib.error.HTTPError) as invalid:
+                    post('/api/ask', {'question': 'budget Atlas', 'mode': 'extraits', 'document_ids': ids})
+                self.assertEqual(invalid.exception.code, 400)
             with self.assertRaises(urllib.error.HTTPError) as failure:
                 post('/api/delete', {'id': 'x'}, 'https://malicious.example')
             self.assertEqual(failure.exception.code, 403)

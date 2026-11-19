@@ -230,9 +230,22 @@ def cosine(a, b):
     return sum(x * y for x, y in zip(a, b)) / denom if denom else 0.0
 
 
-def retrieve(question, use_ai):
+def retrieve(question, use_ai, document_ids=None):
+    if document_ids is not None:
+        if not isinstance(document_ids, list) or not document_ids:
+            raise ValueError("Sélectionnez au moins un document à interroger.")
+        if len(document_ids) > 500 or any(not isinstance(identity, str) or not re.fullmatch(r"[0-9a-f]{24}", identity) for identity in document_ids):
+            raise ValueError("Sélection de documents invalide.")
+        document_ids = list(dict.fromkeys(document_ids))
     with db() as conn:
-        rows = [dict(r) for r in conn.execute("SELECT c.*,d.name FROM chunks c JOIN documents d ON c.document_id=d.id")]
+        query = "SELECT c.*,d.name FROM chunks c JOIN documents d ON c.document_id=d.id"
+        if document_ids is not None:
+            placeholders = ",".join("?" for _ in document_ids)
+            existing = {row[0] for row in conn.execute(f"SELECT id FROM documents WHERE id IN ({placeholders})", document_ids)}
+            if existing != set(document_ids):
+                raise ValueError("Un document sélectionné a été retiré. Actualisez la bibliothèque puis choisissez vos documents.")
+            query += f" WHERE d.id IN ({placeholders})"
+        rows = [dict(r) for r in conn.execute(query, document_ids or [])]
     if not rows:
         return []
     qtokens = set(tokens(question))
@@ -259,11 +272,11 @@ def retrieve(question, use_ai):
     return [dict(row, citation=i + 1) for i, row in enumerate(scored[:5])]
 
 
-def answer(question, use_ai):
+def answer(question, use_ai, document_ids=None):
     if not isinstance(question, str) or not 3 <= len(question.strip()) <= 2000:
         raise ValueError("La question doit contenir entre 3 et 2 000 caractères.")
     started = time.monotonic()
-    sources = retrieve(question, use_ai)
+    sources = retrieve(question, use_ai, document_ids)
     trace = [{"agent": "Recherche", "detail": f"{len(sources)} passages retenus · " + ("recherche hybride sémantique et lexicale" if use_ai else "recherche lexicale locale")}]
     if not sources:
         return {"answer": "Je ne trouve pas de passage suffisamment pertinent dans les documents. Ajoutez une source ou précisez la question.", "sources": [], "trace": trace, "verified": False, "mode": "rag" if use_ai else "extraits", "elapsed": round(time.monotonic() - started, 1)}
@@ -354,7 +367,7 @@ class Handler(BaseHTTPRequestHandler):
                 results = [ingest(p.name, p.read_bytes(), use_ai) for p in sorted((ROOT / "examples").glob("*.md"))]
                 self.send_json({"documents": results})
             elif path == "/api/ask":
-                self.send_json(answer(body.get("question"), use_ai))
+                self.send_json(answer(body.get("question"), use_ai, body.get("document_ids")))
             elif path == "/api/delete":
                 identity = body.get("id")
                 if not isinstance(identity, str):

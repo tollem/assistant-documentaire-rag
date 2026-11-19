@@ -8,7 +8,7 @@ Configuration cible : projet **ZENAI** (`zenai-07071978`), région Zurich **euro
 - Cloud Storage conserve `corpus/index.json` dans le bucket privé `zenai-07071978-source-rag`. Une précondition de génération évite l’écrasement des écritures concurrentes.
 - Le compte dédié `source-rag-runtime@zenai-07071978.iam.gserviceaccount.com` reçoit seulement l’accès aux objets de ce bucket et, si configuré, l’accès au secret OpenAI dédié.
 - La clé est injectée par Secret Manager ; elle ne figure ni dans l’image ni dans Git.
-- Cloud Run exige une identité Google autorisée. Le dépôt GitHub public ne rend pas l’application ou les documents publics.
+- Le service ZENAI a été rendu public à la demande du propriétaire : son corpus est accessible aux visiteurs. L’accès du service se règle indépendamment de la visibilité du dépôt GitHub.
 
 La localisation du bucket ne signifie pas que le traitement OpenAI a lieu en Suisse.
 
@@ -34,10 +34,12 @@ gcloud run deploy assistant-documentaire-rag \
   --set-env-vars=GCS_BUCKET=zenai-07071978-source-rag \
   --port=8080 --memory=512Mi --cpu=1 \
   --min-instances=0 --max-instances=1 --concurrency=1 --timeout=300 \
-  --no-allow-unauthenticated --quiet
+  --allow-unauthenticated --quiet
 ```
 
 Le build peut nécessiter `roles/run.builder` pour le compte Cloud Build utilisé par le projet. Accorder ce rôle seulement à l’identité réellement indiquée par le build, pas au compte d’exécution de l’application. Cloud Build et Artifact Registry peuvent être facturés indépendamment du nombre d’instances.
+
+Pour un nouveau déploiement privé, utiliser `--no-allow-unauthenticated` à la place. Pour retirer l’accès public d’un service déjà public, retirer aussi le membre `allUsers` du rôle `roles/run.invoker` : le changement du drapeau de déploiement seul ne doit pas être considéré comme une preuve de retrait d’un droit existant.
 
 ## Brancher OpenAI
 
@@ -84,12 +86,12 @@ Le script de contrôle automatise ces vérifications sur le corpus fictif. L’o
 
 ```bash
 python scripts/verify_cloud.py \
-  --url https://assistant-documentaire-rag-y65u67ao2a-oa.a.run.app \
-  --impersonate-service-account source-rag-runtime@zenai-07071978.iam.gserviceaccount.com \
+  --url https://assistant-documentaire-rag-460305442272.europe-west6.run.app \
+  --public \
   --rag
 ```
 
-Sans `--rag`, seuls le stockage, l’import et la recherche en mode extraits sont testés. Les jetons Google sont gardés en mémoire ; le script ne lit jamais la valeur du secret OpenAI.
+Sans `--rag`, seuls le stockage, l’import, la sélection et la recherche en mode extraits sont testés. Le contrôle vérifie qu’un document décoché n’alimente pas la réponse et qu’une sélection vide est refusée. Pour un service privé, remplacer `--public` par `--impersonate-service-account` suivi du compte dédié. Les jetons Google sont gardés en mémoire ; le script ne lit jamais la valeur du secret OpenAI.
 
 Ne pas exposer anonymement cette démo avec une clé facturable sans ajouter un contrôle d’accès applicatif, des quotas et une séparation des corpus.
 

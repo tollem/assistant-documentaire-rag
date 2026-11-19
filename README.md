@@ -15,6 +15,10 @@ python app.py
 
 Ouvrir <http://127.0.0.1:8765>. Sans clé, sélectionner le **mode extraits** : recherche lexicale et extraits originaux, sans génération IA. Cliquer sur **Charger le corpus de démo**, puis sur une question proposée.
 
+Dans la bibliothèque, **cocher les documents à interroger**. Tous sont sélectionnés au premier chargement ; « Tout sélectionner / Tout désélectionner » permet de modifier le périmètre en un clic. Le choix est mémorisé dans l’onglet, les nouveaux imports sont cochés automatiquement, et chaque réponse rappelle les fichiers interrogés. Changer la sélection efface la réponse précédente pour éviter de mélanger les périmètres. Sans document coché, la recherche est bloquée.
+
+Le filtre est appliqué côté serveur **avant la recherche et les appels IA de la question**, en mode RAG comme en mode extraits. Il ne supprime pas les documents et ne change pas leur visibilité pour les autres visiteurs : ce n’est pas un contrôle d’accès. L’indexation initiale d’un import en mode RAG reste distincte de la sélection des questions. Les clients API peuvent envoyer `document_ids: ["identifiant", ...]` à `/api/ask` ; une liste vide ou un identifiant inconnu est refusé. Omettre le champ conserve la recherche sur tout le corpus pour les anciens clients.
+
 Pour le RAG, fournir `OPENAI_API_KEY` par l’environnement ou dans un fichier `.env` ignoré par Git. Le fichier `.env.example` décrit la configuration. Un fichier existant peut être lu sans être copié : `python app.py --env-file /chemin/vers/.env`. Ne jamais publier une clé. Modèles configurables via `OPENAI_MODEL` et `OPENAI_EMBEDDING_MODEL`.
 
 ## Ce que fait le RAG
@@ -46,9 +50,9 @@ Le [scénario de démonstration](docs/DEMO.md) propose un déroulé de cinq minu
 
 ## Google Cloud Run
 
-Voir [le guide de déploiement](docs/CLOUD_RUN.md). Le conteneur écoute le port `PORT` sur `0.0.0.0` dans Cloud Run. L’accès est privé par défaut, protégé par l’IAM Cloud Run. Le corpus est partagé entre les utilisateurs autorisés du service : il n’y a pas d’isolation par utilisateur.
+Voir [le guide de déploiement](docs/CLOUD_RUN.md). Le conteneur écoute le port `PORT` sur `0.0.0.0` dans Cloud Run. Le service ZENAI est public à la demande du propriétaire. Le corpus est partagé entre les visiteurs : il n’y a pas d’isolation par utilisateur.
 
-Le service ZENAI est accessible via `python scripts/open_cloud.py`, puis <http://127.0.0.1:8080>, pour le compte Google autorisé. Le proxy conserve le jeton temporaire en mémoire. Ce mode d’accès est documenté dans le guide.
+Ouvrir [l’application publique](https://assistant-documentaire-rag-460305442272.europe-west6.run.app). Pour un déploiement privé, le guide décrit aussi l’accès via `python scripts/open_cloud.py`, puis <http://127.0.0.1:8080>, pour le compte Google autorisé.
 
 En local, SQLite conserve les fragments dans `data/corpus.sqlite3`. Avec `GCS_BUCKET`, chaque transaction utilise un snapshot JSON Cloud Storage et une base SQLite en mémoire. L’écriture utilise une précondition de génération pour empêcher un écrasement concurrent. En cas de conflit, l’opération est refusée et doit être relancée. Les données ne dépendent donc pas du disque éphémère de Cloud Run.
 
@@ -68,6 +72,7 @@ Ce stockage relit le snapshot pour chaque transaction : adapté à un petit corp
 ```bash
 python -m unittest discover -s tests -v
 node --check static/app.js
+node --test tests/selection.test.mjs
 ```
 
 Les tests utilisent des réponses IA simulées, sans consommation API : import/dédoublonnage, recherche, refus hors corpus, citations invalides, agents distincts, PDF sans texte, suppression et endpoints HTTP. Les tests nécessitent l’ouverture d’un port local. GitHub Actions les exécute à chaque push et pull request.
