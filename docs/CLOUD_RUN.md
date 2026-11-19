@@ -64,6 +64,14 @@ gcloud run services proxy assistant-documentaire-rag \
 
 Puis ouvrir <http://127.0.0.1:8080>. Pour d’autres utilisateurs, attribuer explicitement `roles/run.invoker` aux personnes autorisées. Le corpus est commun à tous les utilisateurs de cette démo.
 
+Si le jeton utilisateur gcloud est refusé (cas constaté dans cet environnement), le proxy du projet utilise un jeton destiné explicitement à l’URL Cloud Run, sans secret dans les arguments ou les fichiers :
+
+```bash
+python scripts/open_cloud.py
+```
+
+Ce chemin nécessite `roles/iam.serviceAccountOpenIdTokenCreator` sur le compte dédié pour l’utilisateur appelant, ainsi que `roles/run.invoker` sur le service pour ce compte. Ces droits ont été configurés dans ZENAI pour le propriétaire `whanax@gmail.com`. Ils ne permettent pas de générer une clé de compte de service. Le jeton expire au bout d’environ une heure ; relancer le proxy pour le renouveler.
+
 ## Vérifier après déploiement
 
 1. `/api/status` indique `storage: cloud` et l’état de la configuration IA.

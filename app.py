@@ -324,7 +324,12 @@ class Handler(BaseHTTPRequestHandler):
         # L'application est locale ; refuse les mutations cross-origin, y compris depuis un autre site.
         origin = self.headers.get("Origin")
         host = self.headers.get("Host", "")
-        if origin and origin not in {"http://" + host, "https://" + host}:
+        allowed_origins = {"http://" + host, "https://" + host}
+        # Le proxy gcloud réécrit Host mais conserve Origin. Autorise seulement
+        # son port de démo documenté ; les autres origines restent refusées.
+        if os.getenv("K_SERVICE"):
+            allowed_origins.update({"http://127.0.0.1:8080", "http://localhost:8080"})
+        if origin and origin not in allowed_origins:
             self.send_json({"error": "Origine refusée."}, 403)
             return
         try:

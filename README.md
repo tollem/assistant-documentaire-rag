@@ -48,6 +48,8 @@ Le [scénario de démonstration](docs/DEMO.md) propose un déroulé de cinq minu
 
 Voir [le guide de déploiement](docs/CLOUD_RUN.md). Le conteneur écoute le port `PORT` sur `0.0.0.0` dans Cloud Run. L’accès est privé par défaut, protégé par l’IAM Cloud Run. Le corpus est partagé entre les utilisateurs autorisés du service : il n’y a pas d’isolation par utilisateur.
 
+Le service ZENAI est accessible via `python scripts/open_cloud.py`, puis <http://127.0.0.1:8080>, pour le compte Google autorisé. Le proxy conserve le jeton temporaire en mémoire. Ce mode d’accès est documenté dans le guide.
+
 En local, SQLite conserve les fragments dans `data/corpus.sqlite3`. Avec `GCS_BUCKET`, chaque transaction utilise un snapshot JSON Cloud Storage et une base SQLite en mémoire. L’écriture utilise une précondition de génération pour empêcher un écrasement concurrent. En cas de conflit, l’opération est refusée et doit être relancée. Les données ne dépendent donc pas du disque éphémère de Cloud Run.
 
 Ce stockage relit le snapshot pour chaque transaction : adapté à un petit corpus de démonstration (32 Mo d’index maximum), pas à une grande bibliothèque. Pour un vrai service multiutilisateur, prévoir authentification applicative, isolation des corpus, quotas et un index vectoriel dédié.

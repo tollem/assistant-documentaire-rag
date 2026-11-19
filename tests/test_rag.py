@@ -136,6 +136,9 @@ class RagTests(unittest.TestCase):
             with self.assertRaises(urllib.error.HTTPError) as failure:
                 post('/api/delete', {'id': 'x'}, 'https://malicious.example')
             self.assertEqual(failure.exception.code, 403)
+            with patch.dict(os.environ, {'K_SERVICE': 'cloud-demo'}):
+                result = post('/api/ask', {'question': 'budget Atlas', 'mode': 'extraits'}, 'http://127.0.0.1:8080')
+                self.assertIn('500', result['answer'])
         finally:
             server.shutdown()
             server.server_close()

@@ -12,21 +12,27 @@ import urllib.request
 import certifi
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--url', required=True)
-    parser.add_argument('--impersonate-service-account')
-    args = parser.parse_args()
+def cloud_token(url, service_account=None):
     context = ssl.create_default_context(cafile=certifi.where())
-    if args.impersonate_service_account:
+    if service_account:
         access = subprocess.check_output(['gcloud', 'auth', 'print-access-token'], text=True).strip()
-        req = urllib.request.Request('https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/' + args.impersonate_service_account + ':generateIdToken',
-            data=json.dumps({'audience': args.url, 'includeEmail': True}).encode(),
+        req = urllib.request.Request('https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/' + service_account + ':generateIdToken',
+            data=json.dumps({'audience': url, 'includeEmail': True}).encode(),
             headers={'Authorization': 'Bearer ' + access, 'Content-Type': 'application/json'})
         with urllib.request.urlopen(req, context=context, timeout=30) as response:
             token = json.load(response)['token']
     else:
         token = subprocess.check_output(['gcloud', 'auth', 'print-identity-token'], text=True).strip()
+    return token
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--url', required=True)
+    parser.add_argument('--impersonate-service-account')
+    args = parser.parse_args()
+    token = cloud_token(args.url, args.impersonate_service_account)
+    context = ssl.create_default_context(cafile=certifi.where())
 
     def request(path, body=None):
         headers = {'Authorization': 'Bearer ' + token}
@@ -54,4 +60,9 @@ if __name__ == '__main__':
     try:
         main()
     except urllib.error.HTTPError as error:
-        raise SystemExit(f'Échec HTTP {error.code} du service Cloud Run.') from None
+        detail = error.read().decode(errors='replace')
+        try:
+            detail = json.loads(detail).get('error', {}).get('message', '')
+        except (ValueError, AttributeError):
+            detail = 'Accès HTTP refusé.'
+        raise SystemExit(f'Échec HTTP {error.code} : {detail[:500]}') from None
