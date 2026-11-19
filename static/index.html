@@ -15,7 +15,7 @@
     <h2>Le document reste le point de départ.</h2>
     <p>Vos fichiers sont découpés en fragments, transformés en vecteurs et conservés dans une base locale. Une question retrouve les passages proches de son sens. Un agent rédige la réponse, puis un second la relit contre les sources.</p>
     <p>La recherche est un outil déterministe ; la synthèse et la vérification sont deux appels IA distincts. Il s’agit d’une orchestration séquentielle, sans autonomie de navigation. Une citation valide ne garantit pas à elle seule la vérité de la réponse.</p>
-    <p>En mode RAG, le texte des documents et les questions sont transmis à OpenAI. Le mode extraits fonctionne localement, sans IA. Cette démo locale n’est pas un service multiutilisateur.</p>
+    <p>En mode RAG, le texte des documents et les questions sont transmis à OpenAI. Le mode extraits fonctionne sans IA. Dans Cloud Run, le corpus est partagé entre les utilisateurs autorisés ; il n’existe pas d’isolation par utilisateur.</p>
   </section>
   <div class="workspace">
     <aside class="library" aria-label="Bibliothèque documentaire">

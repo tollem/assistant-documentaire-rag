@@ -88,6 +88,35 @@ class RagTests(unittest.TestCase):
         self.assertEqual(len(hits), 1)
         self.assertGreater(hits[0]['score'], 0)
 
+    def test_cloud_persistence_and_conflict(self):
+        from google.api_core.exceptions import PreconditionFailed
+        class Bucket:
+            payload = None
+            generation = 0
+            size = 0
+            conflict = False
+            def get_blob(self, *args, **kwargs):
+                return self if self.payload else None
+            def blob(self, *args):
+                return self
+            def download_as_text(self, **kwargs):
+                return self.payload
+            def upload_from_string(self, value, **kwargs):
+                if self.conflict or kwargs['if_generation_match'] != self.generation:
+                    raise PreconditionFailed('conflict')
+                self.payload = value
+                self.size = len(value)
+                self.generation += 1
+        bucket = Bucket()
+        with patch.dict(os.environ, {'GCS_BUCKET': 'test-bucket'}), patch('google.cloud.storage.Client') as client:
+            client.return_value.bucket.return_value = bucket
+            app.ingest('cloud.md', b'Atlas budget 500 CHF', False)
+            self.assertIn('500 CHF', app.answer('budget Atlas', False)['answer'])
+            bucket.conflict = True
+            with self.assertRaises(app.StorageConflict):
+                app.ingest('second.md', b'Autre fiche Atlas', False)
+            self.assertEqual(len(json.loads(bucket.payload)['documents']), 1)
+
 
     def test_http_import_ask_and_origin(self):
         server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
