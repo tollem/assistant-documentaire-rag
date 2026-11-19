@@ -18,11 +18,11 @@ import unicodedata
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
-MAX_FILE = 8 * 1024 * 1024
+MAX_FILE = 30 * 1024 * 1024
 MAX_BODY = 12 * 1024 * 1024
 STOP = set("a au aux avec ce ces dans de des du elle en est et eux il ils je la le les leur lui ma mais me meme mes moi mon ne nos notre nous on ou par pas pour qu que quel quelle quelles quels qui sa se ses son sur ta te tes toi ton tu un une vos votre vous c d l s sont comment pourquoi faire peut plus document documents".split())
 
@@ -201,7 +201,7 @@ def structured(instructions, content, name, properties):
 def ingest(name, content, use_ai):
     name = Path(name.replace("\\", "/")).name[:180]
     if not name or not content or len(content) > MAX_FILE:
-        raise ValueError("Fichier vide ou trop volumineux (8 Mo maximum).")
+        raise ValueError("Fichier vide ou trop volumineux (30 Mo maximum).")
     identity = hashlib.sha256(content).hexdigest()[:24]
     with db() as conn:
         if conn.execute("SELECT 1 FROM documents WHERE id = ?", (identity,)).fetchone():
@@ -346,13 +346,28 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": "Origine refusée."}, 403)
             return
         try:
+            path = urlparse(self.path).path
+            binary_upload = path == "/api/documents" and self.headers.get_content_type() == "application/octet-stream"
             length = int(self.headers.get("Content-Length", "0"))
-            if length < 1 or length > MAX_BODY:
+            limit = MAX_FILE if binary_upload else MAX_BODY
+            if length > limit:
+                self.send_json({"error": "Le fichier dépasse 30 Mo." if binary_upload else "Requête trop volumineuse. Pour un fichier jusqu’à 30 Mo, utilisez l’import binaire."}, 413)
+                return
+            if length < 1:
                 raise ValueError("Requête vide ou trop volumineuse.")
+            if binary_upload:
+                encoded_name = self.headers.get("X-File-Name", "")
+                if not encoded_name or len(encoded_name) > 2048:
+                    raise ValueError("Nom du fichier requis (en-tête X-File-Name encodé en URL).")
+                name = unquote(encoded_name, errors="strict")
+                mode = self.headers.get("X-Upload-Mode", "rag")
+                if mode not in {"rag", "extraits"}:
+                    raise ValueError("Mode d’import invalide.")
+                self.send_json(ingest(name, self.rfile.read(length), mode == "rag"))
+                return
             body = json.loads(self.rfile.read(length))
             if not isinstance(body, dict):
                 raise ValueError("Objet JSON attendu.")
-            path = urlparse(self.path).path
             use_ai = body.get("mode", "rag") == "rag"
             if path == "/api/documents":
                 name, data = body.get("name"), body.get("data")

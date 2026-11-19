@@ -1,5 +1,6 @@
 import base64
 import io
+import http.client
 import json
 import os
 from pathlib import Path
@@ -8,6 +9,7 @@ import threading
 import unittest
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 from unittest.mock import patch
 
 import app
@@ -182,6 +184,35 @@ class RagTests(unittest.TestCase):
             with patch.dict(os.environ, {'K_SERVICE': 'cloud-demo'}):
                 result = post('/api/ask', {'question': 'budget Atlas', 'mode': 'extraits'}, 'http://127.0.0.1:8080')
                 self.assertIn('500', result['answer'])
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_binary_upload_accepts_30mib_and_rejects_larger_before_reading(self):
+        server = app.ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        url = f'http://127.0.0.1:{server.server_port}/api/documents'
+        name = 'école + 30%.pdf'
+        content = b'x' * (30 * 1024 * 1024)
+        self.assertEqual(app.MAX_FILE, len(content))
+        try:
+            with patch.object(app, 'extract', return_value=[(1, 'Atlas : import de 30 Mo.')]) as extract:
+                req = urllib.request.Request(url, content, {'Content-Type': 'application/octet-stream', 'X-File-Name': quote(name), 'X-Upload-Mode': 'extraits'})
+                result = json.load(urllib.request.urlopen(req, timeout=30))
+                self.assertEqual(result['name'], name)
+                self.assertEqual(len(extract.call_args.args[1]), app.MAX_FILE)
+                connection = http.client.HTTPConnection('127.0.0.1', server.server_port, timeout=5)
+                try:
+                    connection.putrequest('POST', '/api/documents')
+                    connection.putheader('Content-Type', 'application/octet-stream')
+                    connection.putheader('Content-Length', str(app.MAX_FILE + 1))
+                    connection.endheaders()
+                    response = connection.getresponse()
+                    self.assertEqual(response.status, 413)
+                    self.assertIn('30 Mo', json.load(response)['error'])
+                    self.assertEqual(extract.call_count, 1)
+                finally:
+                    connection.close()
         finally:
             server.shutdown()
             server.server_close()

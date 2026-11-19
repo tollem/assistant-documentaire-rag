@@ -95,4 +95,16 @@ Sans `--rag`, seuls le stockage, l’import, la sélection et la recherche en mo
 
 Ne pas exposer anonymement cette démo avec une clé facturable sans ajouter un contrôle d’accès applicatif, des quotas et une séparation des corpus.
 
+## Import jusqu’à 30 Mo
+
+L’interface envoie les fichiers directement en binaire, sans base64. Un fichier de 30 Mio reste ainsi sous la [limite HTTP/1 de 32 Mio de Cloud Run](https://docs.cloud.google.com/run/quotas). L’API accepte `POST /api/documents` avec `Content-Type: application/octet-stream`, `X-File-Name` contenant le nom encodé en URL et `X-Upload-Mode` valant `rag` ou `extraits`. La taille maximale est de 31 457 280 octets ; au-delà, le serveur renvoie HTTP 413 avant de lire le corps.
+
+Le test suivant génère un vrai PDF de cette taille, vérifie son import et l’extraction du texte en mode extraits (sans appels IA), puis retire uniquement sa propre fiche de contrôle :
+
+```bash
+python scripts/verify_upload.py --url https://assistant-documentaire-rag-460305442272.europe-west6.run.app
+```
+
+Les limites de 150 pages, 250 fragments et 250 000 caractères extraits par document sont distinctes de la taille du fichier et restent applicables.
+
 Documentation : [déploiement depuis les sources](https://docs.cloud.google.com/run/docs/deploying-source-code), [secrets Cloud Run](https://docs.cloud.google.com/run/docs/configuring/services/secrets), [préconditions Cloud Storage](https://docs.cloud.google.com/storage/docs/request-preconditions).
