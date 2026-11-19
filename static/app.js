@@ -80,5 +80,4 @@ $('clear').addEventListener('click', () => { clearResult(); $('question').value 
 $('mode').addEventListener('change', clearResult);
 $('select-all').addEventListener('click', () => { state.selectedIds = state.selectedIds.size === state.documents.length ? new Set() : new Set(state.documents.map(doc => doc.id)); selectionChanged(); });
 $('help-toggle').addEventListener('click', () => { $('help').hidden = !$('help').hidden; $('help-toggle').setAttribute('aria-expanded', String(!$('help').hidden)); });
-document.querySelectorAll('[data-question]').forEach(button => button.addEventListener('click', () => { $('question').value = button.dataset.question; $('question').focus(); }));
 refresh().catch(error => message('Connexion au serveur impossible : ' + error.message, true));

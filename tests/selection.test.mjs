@@ -34,7 +34,6 @@ async function screen(saved = null) {
       const visit = element => { if (nodes.has(element)) return; nodes.add(element); for (const child of element.children) visit(child); };
       for (const element of ids.values()) visit(element);
       if (selector === '.doc-check') return [...nodes].filter(el => el.className === 'doc-check');
-      if (selector === '[data-question]') return [];
       return [...nodes].filter(el => ['button', 'select', 'input', 'textarea'].includes(el.tagName));
     },
   };

@@ -13,7 +13,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Ouvrir <http://127.0.0.1:8765>. Sans clé, sélectionner le **mode extraits** : recherche lexicale et extraits originaux, sans génération IA. Cliquer sur **Charger le corpus de démo**, puis sur une question proposée.
+Ouvrir <http://127.0.0.1:8765>. Sans clé, sélectionner le **mode extraits** : recherche lexicale et extraits originaux, sans génération IA. Cliquer sur **Charger le corpus de démo**, puis rédiger sa question.
 
 Dans la bibliothèque, **cocher les documents à interroger**. Tous sont sélectionnés au premier chargement ; « Tout sélectionner / Tout désélectionner » permet de modifier le périmètre en un clic. Le choix est mémorisé dans l’onglet, les nouveaux imports sont cochés automatiquement, et chaque réponse rappelle les fichiers interrogés. Changer la sélection efface la réponse précédente pour éviter de mélanger les périmètres. Sans document coché, la recherche est bloquée.
 
