@@ -30,6 +30,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--url', required=True)
     parser.add_argument('--impersonate-service-account')
+    parser.add_argument('--rag', action='store_true', help='Teste aussi les embeddings et les deux appels IA réels (facturables).')
     args = parser.parse_args()
     token = cloud_token(args.url, args.impersonate_service_account)
     context = ssl.create_default_context(cafile=certifi.where())
@@ -54,6 +55,18 @@ def main():
     assert not result['sources'], 'La question hors corpus devrait être refusée'
     print('Refus hors corpus : OK')
     print('Documents persistants :', len(request('status')['documents']))
+    if args.rag:
+        assert status['ai_configured'], 'Secret OpenAI non configuré'
+        result = request('ask', {'mode': 'rag', 'question': 'Quel est le budget et qui pilote le projet Atlas ?'})
+        assert result['verified'], 'Réponse non validée par le parcours de vérification'
+        assert '500' in result['answer'] and 'Martin' in result['answer'], 'Réponse incomplète'
+        assert len({source['document_id'] for source in result['sources']}) >= 2, 'Sources croisées manquantes'
+        assert len(result['trace']) == 3, 'Étapes du parcours manquantes'
+        print('RAG réel : embeddings, synthèse, vérification et sources croisées OK')
+        print('Réponse de démonstration :', result['answer'])
+        result = request('ask', {'mode': 'rag', 'question': 'Quel est le mot de passe du serveur Atlas ?'})
+        assert any(word in result['answer'].lower() for word in ['aucun', 'pas', 'insuffisant', 'absence']), 'Refus attendu pour le mot de passe absent'
+        print('Information absente :', result['answer'])
 
 
 if __name__ == '__main__':

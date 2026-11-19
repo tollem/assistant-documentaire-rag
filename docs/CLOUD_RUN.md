@@ -80,6 +80,17 @@ Ce chemin nécessite `roles/iam.serviceAccountOpenIdTokenCreator` sur le compte 
 4. Poser une question hors corpus ; vérifier le refus d’inventer.
 5. Après une nouvelle révision, vérifier que les fiches sont toujours présentes.
 
+Le script de contrôle automatise ces vérifications sur le corpus fictif. L’option `--rag` effectue de vrais appels OpenAI facturables pour tester les embeddings, les deux agents, les sources croisées et l’information absente :
+
+```bash
+python scripts/verify_cloud.py \
+  --url https://assistant-documentaire-rag-y65u67ao2a-oa.a.run.app \
+  --impersonate-service-account source-rag-runtime@zenai-07071978.iam.gserviceaccount.com \
+  --rag
+```
+
+Sans `--rag`, seuls le stockage, l’import et la recherche en mode extraits sont testés. Les jetons Google sont gardés en mémoire ; le script ne lit jamais la valeur du secret OpenAI.
+
 Ne pas exposer anonymement cette démo avec une clé facturable sans ajouter un contrôle d’accès applicatif, des quotas et une séparation des corpus.
 
 Documentation : [déploiement depuis les sources](https://docs.cloud.google.com/run/docs/deploying-source-code), [secrets Cloud Run](https://docs.cloud.google.com/run/docs/configuring/services/secrets), [préconditions Cloud Storage](https://docs.cloud.google.com/storage/docs/request-preconditions).
