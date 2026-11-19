@@ -70,7 +70,7 @@ Si le jeton utilisateur gcloud est refusé (cas constaté dans cet environnement
 python scripts/open_cloud.py
 ```
 
-Ce chemin nécessite `roles/iam.serviceAccountOpenIdTokenCreator` sur le compte dédié pour l’utilisateur appelant, ainsi que `roles/run.invoker` sur le service pour ce compte. Ces droits ont été configurés dans ZENAI pour le propriétaire `whanax@gmail.com`. Ils ne permettent pas de générer une clé de compte de service. Le jeton expire au bout d’environ une heure ; relancer le proxy pour le renouveler.
+Ce chemin nécessite `roles/iam.serviceAccountOpenIdTokenCreator` sur le compte dédié pour l’utilisateur appelant, ainsi que `roles/run.invoker` sur le service pour ce compte. Ces droits ont été configurés dans ZENAI pour le compte Google du propriétaire. Ils ne permettent pas de générer une clé de compte de service. Le jeton expire au bout d’environ une heure ; relancer le proxy pour le renouveler.
 
 ## Vérifier après déploiement
 
