@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Démo pédagogique RAG : interroger des documents et retrouver les preuves de chaque réponse.">
+  <title>Source — Assistant documentaire</title>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Source, accueil"><span class="mark" aria-hidden="true">[s]</span> source<span class="brand-sub">Atelier documentaire</span></a>
+    <button id="help-toggle" class="quiet" aria-expanded="false" aria-controls="help">Comprendre le RAG</button>
+  </header>
+  <section id="help" class="help" hidden>
+    <h2>Le document reste le point de départ.</h2>
+    <p>Vos fichiers sont découpés en fragments, transformés en vecteurs et conservés dans une base locale. Une question retrouve les passages proches de son sens. Un agent rédige la réponse, puis un second la relit contre les sources.</p>
+    <p>La recherche est un outil déterministe ; la synthèse et la vérification sont deux appels IA distincts. Il s’agit d’une orchestration séquentielle, sans autonomie de navigation. Une citation valide ne garantit pas à elle seule la vérité de la réponse.</p>
+    <p>En mode RAG, le texte des documents et les questions sont transmis à OpenAI. Le mode extraits fonctionne localement, sans IA. Cette démo locale n’est pas un service multiutilisateur.</p>
+  </section>
+  <div class="workspace">
+    <aside class="library" aria-label="Bibliothèque documentaire">
+      <div class="section-top"><h2>Bibliothèque</h2><span id="doc-count" class="count">0</span></div>
+      <p class="muted">Les documents de votre recherche.</p>
+      <label for="files" class="upload">Ajouter des documents<input id="files" type="file" accept=".pdf,.txt,.md" multiple></label>
+      <p class="file-hint">PDF texte, TXT, Markdown · 8 Mo / fichier</p>
+      <div id="documents" class="document-list"></div>
+      <button id="demo" class="secondary">Charger le corpus de démo</button>
+      <p class="library-note">Trois fiches fictives sur le projet Atlas, prêtes pour votre présentation.</p>
+      <div class="library-bottom"><span id="chunk-count">0 fragment indexé</span><span id="storage">Stockage local · SQLite</span></div>
+    </aside>
+    <main>
+      <div class="page-title"><div><p class="breadcrumb">Cas 3 / Mon assistant documentaire</p><h1>Interroger vos documents</h1></div><span id="session" class="local-label">Session locale</span></div>
+      <div class="mode-row"><label for="mode">Méthode</label><select id="mode"><option value="rag">RAG · recherche et agents IA</option><option value="extraits">Extraits · recherche locale sans IA</option></select><span id="connection" class="muted">Connexion…</span></div>
+      <div class="research-grid">
+        <section class="conversation" aria-label="Question et réponse">
+          <div class="panel-heading"><h2>Votre recherche</h2><button id="clear" class="quiet" disabled>Nouvelle question</button></div>
+          <div id="welcome" class="welcome">
+            <span class="paper-symbol" aria-hidden="true">[ … ]</span>
+            <h2>Une réponse, avec ses preuves.</h2>
+            <p>Ajoutez vos documents ou chargez le corpus de démo, puis posez une question. Chaque référence vous ramène au passage d’origine.</p>
+            <div class="suggestions"><p>À essayer avec le corpus Atlas</p><button data-question="Quels sont les objectifs du projet Atlas ?">Quels sont les objectifs du projet Atlas ?</button><button data-question="Quel est le budget et qui pilote le projet Atlas ?">Quel est le budget et qui pilote le projet ?</button><button data-question="Quel est le mot de passe du serveur Atlas ?">Et si la réponse n’est pas dans les documents ?</button></div>
+          </div>
+          <div id="result" hidden>
+            <p class="result-label">Votre question</p><h2 id="asked"></h2>
+            <div class="answer-label"><span>Réponse documentaire</span><span id="verification"></span></div>
+            <div id="answer" class="answer"></div>
+            <p id="duration" class="muted"></p>
+          </div>
+          <div id="loading" class="loading" role="status" hidden>Recherche des passages et traitement de votre question…</div>
+          <form id="question-form"><label for="question">Votre question</label><textarea id="question" rows="3" maxlength="2000" minlength="3" placeholder="Que souhaitez-vous retrouver dans vos documents ?" required></textarea><div class="composer-footer"><span>Ctrl / ⌘ + Entrée pour envoyer</span><button id="ask" class="primary" type="submit">Rechercher</button></div></form>
+          <p class="privacy">Mode RAG : les textes sont envoyés à OpenAI. Vérifiez les réponses avant de les utiliser.</p>
+        </section>
+        <aside class="evidence" aria-label="Sources et parcours des agents">
+          <div class="panel-heading"><h2>Passages sources</h2><span id="source-count" class="count">0</span></div>
+          <div id="sources" class="sources"><div class="source-empty"><span class="quote-mark" aria-hidden="true">“</span><p>Les preuves apparaîtront ici.</p><p class="muted">Nom du document, page et extrait exact pour vérifier la réponse.</p></div></div>
+          <section class="pipeline"><h2>Parcours de la question</h2><ol id="trace"><li><span>Recherche</span><p>Retrouver les passages pertinents.</p></li><li><span>Synthèse</span><p>Rédiger à partir des sources.</p></li><li><span>Vérification</span><p>Relire les affirmations et les citations.</p></li></ol><p class="pipeline-note">Le résultat de chaque étape s’affiche après le traitement.</p></section>
+        </aside>
+      </div>
+      <div id="message" role="status" aria-live="polite" hidden></div>
+      <footer>Source · Démo pédagogique RAG<span>Des documents aux passages, des passages à la réponse.</span></footer>
+    </main>
+  </div>
+</body>
+</html>

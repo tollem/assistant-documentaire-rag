@@ -1,0 +1,10 @@
+.gcloudignore
+.git
+.venv
+.env
+.env.*
+data
+__pycache__
+.taste-skill
+tests
+*.log
