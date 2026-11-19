@@ -1,6 +1,6 @@
 # Source — Mon assistant documentaire RAG
 
-Démo de classe en français : importer des documents, poser une question et retrouver les passages qui justifient la réponse. Le projet est prêt pour **Google Cloud Run**, avec corpus persistant dans **Cloud Storage** et clé fournie par **Secret Manager**.
+Démonstration réalisée dans le cadre de la formation IA du **CAS Leadership** : importer des documents, poser une question et retrouver les passages qui justifient la réponse. Le projet est prêt pour **Google Cloud Run**, avec corpus persistant dans **Cloud Storage** et clé fournie par **Secret Manager**.
 
 ## Démarrer localement
 
